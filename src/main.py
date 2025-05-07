@@ -1,5 +1,8 @@
-import evaluate
 from datasets import load_dataset
+import evaluate
+from loguru import logger
+import numpy as np
+import polars as pl
 import torch
 from transformers import (
     AutoModelForSequenceClassification,
@@ -8,12 +11,15 @@ from transformers import (
     Trainer,
     TrainingArguments,
 )
-import numpy as np
-from loguru import logger
-import polars as pl
 import typer
 
-from src.config import MODELS_DIR, PROCESSED_DATA_DIR, SEED, TRAIN_SPLIT, VALIDATION_SPLIT
+from src.config import (
+    MODELS_DIR,
+    PROCESSED_DATA_DIR,
+    SEED,
+    TRAIN_SPLIT,
+    VALIDATION_SPLIT,
+)
 
 app = typer.Typer()
 
@@ -21,7 +27,9 @@ model_name = "distilbert-base-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = (AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=6).to(device))
+model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=6).to(
+    device
+)
 metric = evaluate.load("accuracy")
 
 
@@ -39,13 +47,18 @@ def compute_metrics(eval_preds):
 @app.command()
 def main():
     logger.info("Downloading dataset...")
-    df = pl.read_parquet("hf://datasets/dair-ai/emotion/unsplit/train-00000-of-00001.parquet")
+    df = pl.read_parquet(
+        "hf://datasets/dair-ai/emotion/unsplit/train-00000-of-00001.parquet"
+    )
     logger.success("Downloading dataset complete.")
 
     logger.info("Processing dataset...")
     df = df.with_columns(
         [
-            pl.col("text").str.replace(r"(\n|\r|\s+)", " ").str.strip_chars().str.normalize("NFKD"),
+            pl.col("text")
+            .str.replace(r"(\n|\r|\s+)", " ")
+            .str.strip_chars()
+            .str.normalize("NFKD"),
         ]
     )
 
@@ -65,7 +78,9 @@ def main():
 
     train_df = df.sample(n=train_size, with_replacement=False, seed=SEED)
     remaining_df = df.join(train_df, on="text", how="anti")
-    validation_df = remaining_df.sample(n=validation_size, with_replacement=False, seed=SEED)
+    validation_df = remaining_df.sample(
+        n=validation_size, with_replacement=False, seed=SEED
+    )
     test_df = remaining_df.join(validation_df, on="text", how="anti")
     logger.success("Splitting dataset complete.")
 
@@ -123,6 +138,7 @@ def main():
     test_results = trainer.evaluate(test_ds["test"])
     logger.success("Evaluation complete.")
     logger.info(f"Test results: {test_results}")
+
 
 if __name__ == "__main__":
     app()
