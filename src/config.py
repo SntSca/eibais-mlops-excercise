@@ -22,11 +22,16 @@ PROJ_ROOT = Path(PROJ_ROOT)
 
 DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
+os.makedirs(RAW_DATA_DIR, exist_ok=True)
 INTERIM_DATA_DIR = DATA_DIR / "interim"
+os.makedirs(INTERIM_DATA_DIR, exist_ok=True)
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
+os.makedirs(PROCESSED_DATA_DIR, exist_ok=True)
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
+os.makedirs(EXTERNAL_DATA_DIR, exist_ok=True)
 
 MODELS_DIR = PROJ_ROOT / "models"
+os.makedirs(MODELS_DIR, exist_ok=True)
 
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"

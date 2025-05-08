@@ -26,10 +26,6 @@ app = typer.Typer()
 model_name = "distilbert-base-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=6).to(
-    device
-)
 metric = evaluate.load("accuracy")
 
 
@@ -47,18 +43,13 @@ def compute_metrics(eval_preds):
 @app.command()
 def main():
     logger.info("Downloading dataset...")
-    df = pl.read_parquet(
-        "hf://datasets/dair-ai/emotion/unsplit/train-00000-of-00001.parquet"
-    )
+    df = pl.read_parquet("hf://datasets/dair-ai/emotion/unsplit/train-00000-of-00001.parquet")
     logger.success("Downloading dataset complete.")
 
     logger.info("Processing dataset...")
     df = df.with_columns(
         [
-            pl.col("text")
-            .str.replace(r"(\n|\r|\s+)", " ")
-            .str.strip_chars()
-            .str.normalize("NFKD"),
+            pl.col("text").str.replace(r"(\n|\r|\s+)", " ").str.strip_chars().str.normalize("NFKD"),
         ]
     )
 
@@ -78,9 +69,7 @@ def main():
 
     train_df = df.sample(n=train_size, with_replacement=False, seed=SEED)
     remaining_df = df.join(train_df, on="text", how="anti")
-    validation_df = remaining_df.sample(
-        n=validation_size, with_replacement=False, seed=SEED
-    )
+    validation_df = remaining_df.sample(n=validation_size, with_replacement=False, seed=SEED)
     test_df = remaining_df.join(validation_df, on="text", how="anti")
     logger.success("Splitting dataset complete.")
 
@@ -98,8 +87,12 @@ def main():
     )
 
     logger.info("Starting training...")
-    tokenized_ds = ds.map(tokenize, batched=True, batch_size=None)
-    tokenized_ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
+    training_ds = ds["train"].shuffle(seed=SEED).select(range(1000))  # Selecting a subset for faster training
+    training_ds = training_ds.map(tokenize, batched=True, batch_size=None)
+    training_ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
+    validation_ds = ds["validation"].shuffle(seed=SEED).select(range(500))  # Selecting a subset for faster evaluation
+    validation_ds = validation_ds.map(tokenize, batched=True, batch_size=None)
+    validation_ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
 
     training_args = TrainingArguments(
         num_train_epochs=1,
@@ -113,13 +106,26 @@ def main():
 
     data_collator = DataCollatorWithPadding(tokenizer)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    id2label = {
+        0: "sadness",
+        1: "joy",
+        2: "love",
+        3: "anger",
+        4: "fear",
+        5: "surprise",
+    }
+    label2id = {v: k for k, v in id2label.items()}
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_name, num_labels=6, id2label=id2label, label2id=label2id
+    ).to(device)
     trainer = Trainer(
         model=model,
         processing_class=tokenizer,
         data_collator=data_collator,
         args=training_args,
-        train_dataset=tokenized_ds["train"],
-        eval_dataset=tokenized_ds["validation"],
+        train_dataset=training_ds,
+        eval_dataset=validation_ds,
         compute_metrics=compute_metrics,
     )
 
@@ -133,9 +139,9 @@ def main():
             "test": str(PROCESSED_DATA_DIR / "test.parquet"),
         },
     )
-    test_ds = test_ds.map(tokenize, batched=True)
+    test_ds = test_ds["test"].shuffle(SEED).select(range(100)).map(tokenize, batched=True) # Selecting a subset for faster evaluation
 
-    test_results = trainer.evaluate(test_ds["test"])
+    test_results = trainer.evaluate(test_ds)
     logger.success("Evaluation complete.")
     logger.info(f"Test results: {test_results}")
 
