@@ -43,13 +43,18 @@ def compute_metrics(eval_preds):
 @app.command()
 def main():
     logger.info("Downloading dataset...")
-    df = pl.read_parquet("hf://datasets/dair-ai/emotion/unsplit/train-00000-of-00001.parquet")
+    df = pl.read_parquet(
+        "hf://datasets/dair-ai/emotion/unsplit/train-00000-of-00001.parquet"
+    )
     logger.success("Downloading dataset complete.")
 
     logger.info("Processing dataset...")
     df = df.with_columns(
         [
-            pl.col("text").str.replace(r"(\n|\r|\s+)", " ").str.strip_chars().str.normalize("NFKD"),
+            pl.col("text")
+            .str.replace(r"(\n|\r|\s+)", " ")
+            .str.strip_chars()
+            .str.normalize("NFKD"),
         ]
     )
 
@@ -69,7 +74,9 @@ def main():
 
     train_df = df.sample(n=train_size, with_replacement=False, seed=SEED)
     remaining_df = df.join(train_df, on="text", how="anti")
-    validation_df = remaining_df.sample(n=validation_size, with_replacement=False, seed=SEED)
+    validation_df = remaining_df.sample(
+        n=validation_size, with_replacement=False, seed=SEED
+    )
     test_df = remaining_df.join(validation_df, on="text", how="anti")
     logger.success("Splitting dataset complete.")
 
@@ -87,10 +94,14 @@ def main():
     )
 
     logger.info("Starting training...")
-    training_ds = ds["train"].shuffle(seed=SEED).select(range(1000))  # Selecting a subset for faster training
+    training_ds = (
+        ds["train"].shuffle(seed=SEED).select(range(1000))
+    )  # Selecting a subset for faster training
     training_ds = training_ds.map(tokenize, batched=True, batch_size=None)
     training_ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
-    validation_ds = ds["validation"].shuffle(seed=SEED).select(range(500))  # Selecting a subset for faster evaluation
+    validation_ds = (
+        ds["validation"].shuffle(seed=SEED).select(range(500))
+    )  # Selecting a subset for faster evaluation
     validation_ds = validation_ds.map(tokenize, batched=True, batch_size=None)
     validation_ds.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
 
@@ -139,7 +150,9 @@ def main():
             "test": str(PROCESSED_DATA_DIR / "test.parquet"),
         },
     )
-    test_ds = test_ds["test"].shuffle(SEED).select(range(100)).map(tokenize, batched=True) # Selecting a subset for faster evaluation
+    test_ds = (
+        test_ds["test"].shuffle(SEED).select(range(100)).map(tokenize, batched=True)
+    )  # Selecting a subset for faster evaluation
 
     test_results = trainer.evaluate(test_ds)
     logger.success("Evaluation complete.")
