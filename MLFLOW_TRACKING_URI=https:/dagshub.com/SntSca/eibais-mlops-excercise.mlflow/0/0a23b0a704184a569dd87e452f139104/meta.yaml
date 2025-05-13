@@ -1,0 +1,15 @@
+artifact_uri: /home/santiago-sanchez/Escritorio/eibais-mlops-excercise/MLFLOW_TRACKING_URI=https:/dagshub.com/SntSca/eibais-mlops-excercise.mlflow/0/0a23b0a704184a569dd87e452f139104/artifacts
+end_time: 1747130280052
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 0a23b0a704184a569dd87e452f139104
+run_name: capable-auk-759
+run_uuid: 0a23b0a704184a569dd87e452f139104
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747130280045
+status: 3
+tags: []
+user_id: SntSca

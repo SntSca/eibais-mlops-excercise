@@ -1,0 +1,15 @@
+artifact_uri: /home/santiago-sanchez/Escritorio/eibais-mlops-excercise/MLFLOW_TRACKING_URI=https:/dagshub.com/SntSca/eibais-mlops-excercise.mlflow/0/4641ba557d224faf987ef9e612521c96/artifacts
+end_time: 1747130278239
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 4641ba557d224faf987ef9e612521c96
+run_name: /home/santiago-sanchez/Escritorio/models/distilbert-twitter-emotions-checkpoint
+run_uuid: 4641ba557d224faf987ef9e612521c96
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1747130266403
+status: 3
+tags: []
+user_id: SntSca
